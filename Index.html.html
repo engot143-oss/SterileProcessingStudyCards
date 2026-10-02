@@ -1,0 +1,459 @@
+<title>SPD Study Cards</title>
+<style>
+  /* layout: sticky top bar (mode + category chips) over a centered single-card study stage; quiz mode swaps the stage content in place */
+  :root{
+    --bg:#eef2f3; --surface:#ffffff; --surface-2:#e3eaec;
+    --fg:#152227; --fg-muted:#5c6f76; --border:#c9d4d7;
+    --accent:#0f7a6c; --accent-fg:#ffffff;
+    --warn:#b5660f; --good:#1f8a4c;
+    --shadow: 0 1px 2px rgba(21,34,39,.06), 0 8px 24px rgba(21,34,39,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1417; --surface:#141e22; --surface-2:#1b282d;
+      --fg:#e8eff0; --fg-muted:#8da0a7; --border:#2a3a40;
+      --accent:#35d6bd; --accent-fg:#06211c;
+      --warn:#f0a94e; --good:#5fd690;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1417; --surface:#141e22; --surface-2:#1b282d;
+    --fg:#e8eff0; --fg-muted:#8da0a7; --border:#2a3a40;
+    --accent:#35d6bd; --accent-fg:#06211c;
+    --warn:#f0a94e; --good:#5fd690;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.45);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    padding-inline:16px; padding-bottom:28px;
+    min-height:100%;
+  }
+  h1,h2,h3{font-family:'Archivo', 'IBM Plex Sans', sans-serif; text-wrap:balance; margin:0;}
+  .tag, .mono{font-family:'IBM Plex Mono', monospace;}
+
+  a{color:var(--accent);}
+
+  .wrap{max-width:640px; margin:0 auto;}
+
+  header.top{
+    position:sticky; top:env(safe-area-inset-top,0px);
+    background:var(--bg); z-index:5;
+    padding-top:18px; padding-bottom:10px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .titlerow{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .titlerow h1{font-size:1.3rem; letter-spacing:.2px;}
+  .subtitle{color:var(--fg-muted); font-size:.82rem; margin-top:2px;}
+
+  .modebar{
+    display:flex; gap:6px; background:var(--surface-2); border-radius:999px; padding:4px;
+    border:1px solid var(--border);
+  }
+  .modebar button{
+    flex:1; border:none; background:transparent; color:var(--fg-muted);
+    padding:8px 10px; border-radius:999px; font-size:.84rem; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .modebar button.active{background:var(--accent); color:var(--accent-fg);}
+
+  .chips{display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto; border:1px solid var(--border); background:var(--surface);
+    color:var(--fg-muted); padding:7px 12px; border-radius:999px; font-size:.78rem;
+    font-weight:600; cursor:pointer; white-space:nowrap; font-family:inherit;
+  }
+  .chip.active{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--surface));}
+
+  .progressline{
+    height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; border:1px solid var(--border);
+  }
+  .progressfill{height:100%; background:var(--accent); width:0%; transition:width .3s ease;}
+  .progresslabel{display:flex; justify-content:space-between; font-size:.74rem; color:var(--fg-muted); margin-top:4px;}
+
+  main{padding-top:14px;}
+
+  /* flashcard */
+  .stage{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  .cardzone{
+    width:100%; max-width:520px; min-height:260px;
+    perspective:1400px;
+  }
+  .flip{
+    position:relative; width:100%; height:100%; min-height:260px;
+    transform-style:preserve-3d; transition:transform .45s cubic-bezier(.3,.1,.2,1);
+    cursor:pointer;
+  }
+  .flip.flipped{transform:rotateY(180deg);}
+  .face{
+    position:absolute; inset:0; backface-visibility:hidden;
+    border-radius:18px; border:1px solid var(--border); background:var(--surface);
+    box-shadow:var(--shadow); padding:26px 24px; display:flex; flex-direction:column;
+    min-height:260px;
+  }
+  .face.back{transform:rotateY(180deg); background:color-mix(in srgb, var(--accent) 7%, var(--surface));}
+  .cat-tag{
+    align-self:flex-start; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--surface));
+    padding:4px 9px; border-radius:6px; margin-bottom:14px;
+  }
+  .face h2{font-size:1.18rem; line-height:1.35; margin-bottom:auto;}
+  .face .hint{color:var(--fg-muted); font-size:.78rem; margin-top:14px;}
+  .face.back p{font-size:1rem; line-height:1.55; margin:0; color:var(--fg);}
+  .face.back .term{font-size:.74rem; letter-spacing:.04em; text-transform:uppercase; color:var(--fg-muted); margin-bottom:8px;}
+
+  .controls{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; max-width:520px;}
+  .iconbtn{
+    border:1px solid var(--border); background:var(--surface); color:var(--fg);
+    width:44px; height:44px; border-radius:50%; font-size:1.05rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .judgebtns{display:flex; gap:8px; flex:1; justify-content:center;}
+  .judgebtns button{
+    font-family:inherit; font-weight:700; font-size:.82rem; border-radius:10px; padding:11px 14px;
+    border:1px solid var(--border); background:var(--surface); color:var(--fg); cursor:pointer; flex:1; max-width:160px;
+  }
+  .judgebtns .again{color:var(--warn); border-color:color-mix(in srgb, var(--warn) 50%, var(--border));}
+  .judgebtns .got-it{color:var(--good); border-color:color-mix(in srgb, var(--good) 50%, var(--border));}
+  .judgebtns .got-it.pressed{background:var(--good); color:#06211c; border-color:var(--good);}
+  .judgebtns .again.pressed{background:var(--warn); color:#211505; border-color:var(--warn);}
+
+  .counter{font-size:.78rem; color:var(--fg-muted); text-align:center;}
+
+  /* quiz */
+  .quizcard{
+    border:1px solid var(--border); background:var(--surface); border-radius:18px;
+    padding:22px; box-shadow:var(--shadow);
+  }
+  .quizcard .cat-tag{margin-bottom:12px;}
+  .quizcard h2{font-size:1.1rem; line-height:1.4; margin-bottom:16px;}
+  .choices{display:flex; flex-direction:column; gap:9px;}
+  .choice{
+    text-align:left; font-family:inherit; font-size:.92rem; line-height:1.4;
+    border:1px solid var(--border); background:var(--surface-2); color:var(--fg);
+    padding:12px 14px; border-radius:12px; cursor:pointer;
+  }
+  .choice.correct{border-color:var(--good); background:color-mix(in srgb, var(--good) 18%, var(--surface-2)); color:var(--fg);}
+  .choice.wrong{border-color:var(--warn); background:color-mix(in srgb, var(--warn) 18%, var(--surface-2)); color:var(--fg);}
+  .choice[disabled]{cursor:default;}
+  .quizfeedback{margin-top:14px; font-size:.85rem; color:var(--fg-muted); line-height:1.5; min-height:1.2em;}
+  .nextq{margin-top:14px; width:100%; font-family:inherit; font-weight:700; border:none; border-radius:10px;
+    padding:12px; background:var(--accent); color:var(--accent-fg); cursor:pointer; font-size:.9rem;}
+  .nextq[hidden]{display:none;}
+  .score{font-size:.78rem; color:var(--fg-muted); text-align:center; margin-top:10px;}
+
+  .empty{color:var(--fg-muted); font-size:.9rem; text-align:center; padding:40px 10px;}
+
+  footer{margin-top:28px; text-align:center; font-size:.72rem; color:var(--fg-muted);}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+
+<div class="wrap">
+  <header class="top">
+    <div class="titlerow">
+      <h1>SPD Study Cards</h1>
+    </div>
+    <div class="subtitle">25 real-shift lessons on decon, inspection, packaging &amp; sterilization — study them or quiz yourself.</div>
+
+    <div class="modebar">
+      <button id="mode-study" class="active">Study</button>
+      <button id="mode-quiz">Quiz</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div>
+      <div class="progressline"><div class="progressfill" id="progressfill"></div></div>
+      <div class="progresslabel"><span id="progresstext">0 of 25 mastered</span><span id="progresspct">0%</span></div>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <footer>Tap a card to flip it. Your mastered cards are remembered on this device.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CARDS = [
+    {id:1,  cat:'clean',    term:'Point-of-Use Cleaning',       q:'Why can’t dirty instruments just wait until you get to them?', a:'Biofilm starts forming within a couple hours of instruments sitting soiled — and once it forms, no autoclave can undo it. Point-of-use pre-cleaning in the OR is your first line of defense.'},
+    {id:2,  cat:'clean',    term:'Open Every Hinge',            q:'What do you need to do with hinged instruments before they hit the ultrasonic?', a:'Open every ratchet and clamp. A hinged instrument closed during cleaning traps blood and debris in the box lock no matter how long it soaks.'},
+    {id:3,  cat:'clean',    term:'Enzymatic Contact Time',      q:'Can you rush enzymatic detergent to save time?', a:'No — it needs its full contact time to actually break down blood and bioburden before you touch a brush. Set a timer and let the chemistry work.'},
+    {id:4,  cat:'clean',    term:'Flushing Lumens',             q:'Is soaking enough for lumened instruments?', a:'No. Enzymatic solution has to be flushed straight through the channel with a syringe, or trapped debris rides through the wash undetected.'},
+    {id:5,  cat:'clean',    term:'Instrument Milk Bath',        q:'What keeps hinges from seizing up after cleaning?', a:'A 30-second lubricant (instrument milk) bath after cleaning protects every ratchet and prevents stains from creeping in. Skipping it is how hinges start to seize.'},
+    {id:6,  cat:'clean',    term:'Purified Final Rinse',        q:'Why not just use tap water for the washer’s final rinse?', a:'Tap water leaves mineral spots that can hide pitting, corrosion, or leftover bioburden under your inspection light. The final rinse should run on purified water.'},
+    {id:7,  cat:'clean',    term:'Rinse Cool, Not Hot',         q:'What temperature water should you use to rinse blood and debris first?', a:'Cool, never hot. Heat cooks protein right onto the instrument surface, turning a quick rinse into a stubborn soak-and-scrub later.'},
+    {id:8,  cat:'clean',    term:'Ultrasonic Degassing',        q:'Why run the ultrasonic cleaner empty for 5 minutes at the start of a shift?', a:'A fresh fill needs time to degas, or the cavitation bubbles collapse too weakly to knock debris loose. Degassing first makes every load after it come out truly clean.'},
+    {id:9,  cat:'clean',    term:'Scrub Below the Waterline',   q:'Where should you brush and scrub instruments during manual cleaning?', a:'Below the waterline, always. Scrubbing at the surface sprays aerosolized blood and bioburden into the air you’re breathing.'},
+    {id:10, cat:'facility', term:'One-Way Workflow',            q:'Can you walk back through a door from clean into decon?', a:'No — instruments, carts, and people should only ever move forward through decon and clean areas, never back through a door already crossed. It prevents cross-contamination downstream.'},
+    {id:11, cat:'facility', term:'Pressure Gradient',           q:'Which area runs negative air pressure, and which runs positive?', a:'Decon runs negative, clean/sterile storage runs positive. Air is engineered to flow from clean toward dirty, pulling contaminants away from your sets.'},
+    {id:12, cat:'inspect',  term:'Lighted Magnifier',           q:'Why isn’t a visual check enough during inspection?', a:'Your eyes alone will miss pitting, hairline cracks, and dried bioburden hiding in box locks and serrations. A lighted magnifier at the inspection station catches what a glance won’t.'},
+    {id:13, cat:'inspect',  term:'Gasket &amp; Filter Check',   q:'What two things should you check on a rigid container before it’s sterilized?', a:'Run a finger along the gasket and hold the filter up to the light. A cracked gasket or a pinhole filter is an invisible failure until that “sterile” tray reaches the OR.'},
+    {id:14, cat:'pack',     term:'Double-Pouch Orientation',    q:'When double-pouching, which way do the pouches nest?', a:'Paper-to-plastic, never plastic-to-plastic. That orientation is what lets steam actually reach and penetrate the inner layer.'},
+    {id:15, cat:'pack',     term:'Tray Weight Limit',           q:'About how heavy can a general instrument tray be?', a:'Roughly 25 lbs. An overloaded tray won’t reach proper sterilization temperature all the way through, no matter how long the cycle runs.'},
+    {id:16, cat:'pack',     term:'Double-Count Every Tray',     q:'How many times should you count instruments against the count sheet before closing a tray?', a:'Twice. A missing instrument isn’t just a paperwork problem — it’s a possible retained item in a patient.'},
+    {id:17, cat:'sterile',  term:'Wet Pack',                    q:'Is a wet pack coming out of the autoclave just a cosmetic issue?', a:'No — it’s an automatic fail. Always check trays before they leave the autoclave.'},
+    {id:18, cat:'sterile',  term:'Chemical vs. Biological Indicators', q:'Does a chemical indicator changing color prove the load is sterile?', a:'No — it only confirms the cycle’s parameters were met. Biological indicators are what actually confirm sterility.'},
+    {id:19, cat:'sterile',  term:'Implants Wait for the BI',    q:'Can an implant tray be released on a passing chemical indicator alone?', a:'Never. Implants wait for the biological indicator result, full stop, no matter how confident the cycle looked.'},
+    {id:20, cat:'sterile',  term:'Immediate-Use Steam Sterilization', q:'Is IUSS a shortcut for a busy day?', a:'No — it’s an emergency backup. Skipping the full dry cycle risks a wet, contaminated tray the moment it leaves the sterilizer. Save it for true emergencies only.'},
+    {id:21, cat:'sterile',  term:'Daily Bowie-Dick Test',       q:'What has to run every day in an empty prevacuum sterilizer before the first load?', a:'A Bowie-Dick test. It’s the only thing that proves the machine can pull air out and let steam reach every corner.'},
+    {id:22, cat:'sterile',  term:'Leave Space in the Chamber',  q:'Why shouldn’t you pack the sterilizer chamber wall-to-wall?', a:'Steam needs open space between every tray and pouch to actually reach each surface. Cram it full and the center of the load may never hit temperature.'},
+    {id:23, cat:'sterile',  term:'Cool-Down Time',              q:'How long should a tray sit untouched after coming out of the autoclave?', a:'30 to 60 minutes. Handling or stacking it while still warm turns trapped heat into condensation that can wick contamination through the wrap.'},
+    {id:24, cat:'facility', term:'Lot Number Logging',          q:'What should be logged for every tray before it leaves decon?', a:'Its own lot number — sterilizer, cycle, and date. If a BI ever comes back positive, that number is what makes a fast, precise recall possible.'},
+    {id:25, cat:'facility', term:'Event-Related Shelf Life',    q:'Does a sterile package expire on a calendar countdown?', a:'No — it stays sterile until something breaks the seal (moisture, a tear, rough handling). That’s what “event-related” shelf life means: trust the inspection over the calendar.'}
+  ];
+
+  var CATS = [
+    {key:'all',      label:'All'},
+    {key:'clean',    label:'Decon & Cleaning'},
+    {key:'inspect',  label:'Inspection'},
+    {key:'pack',     label:'Packaging'},
+    {key:'sterile',  label:'Sterilization'},
+    {key:'facility', label:'Facility Flow'}
+  ];
+  var CATLABEL = {}; CATS.forEach(function(c){ CATLABEL[c.key] = c.label; });
+
+  function loadMastered(){
+    try{
+      var raw = localStorage.getItem('spd_mastered');
+      return raw ? JSON.parse(raw) : [];
+    }catch(e){ return []; }
+  }
+  function saveMastered(list){
+    try{ localStorage.setItem('spd_mastered', JSON.stringify(list)); }catch(e){}
+  }
+
+  var state = {
+    mode: 'study',
+    cat: 'all',
+    index: 0,
+    flipped: false,
+    mastered: loadMastered()
+  };
+
+  var elMain = document.getElementById('main');
+  var elChips = document.getElementById('chips');
+  var elProgFill = document.getElementById('progressfill');
+  var elProgText = document.getElementById('progresstext');
+  var elProgPct = document.getElementById('progresspct');
+  var btnStudy = document.getElementById('mode-study');
+  var btnQuiz = document.getElementById('mode-quiz');
+
+  function filteredCards(){
+    if(state.cat === 'all') return CARDS;
+    return CARDS.filter(function(c){ return c.cat === state.cat; });
+  }
+
+  function renderChips(){
+    elChips.innerHTML = '';
+    CATS.forEach(function(c){
+      var b = document.createElement('button');
+      b.className = 'chip' + (state.cat === c.key ? ' active' : '');
+      b.textContent = c.label;
+      b.addEventListener('click', function(){
+        state.cat = c.key;
+        state.index = 0;
+        state.flipped = false;
+        renderChips();
+        render();
+      });
+      elChips.appendChild(b);
+    });
+  }
+
+  function renderProgress(){
+    var total = CARDS.length;
+    var done = state.mastered.length;
+    var pct = Math.round((done/total)*100);
+    elProgFill.style.width = pct + '%';
+    elProgText.textContent = done + ' of ' + total + ' mastered';
+    elProgPct.textContent = pct + '%';
+  }
+
+  function setMode(mode){
+    state.mode = mode;
+    state.index = 0;
+    state.flipped = false;
+    btnStudy.classList.toggle('active', mode === 'study');
+    btnQuiz.classList.toggle('active', mode === 'quiz');
+    render();
+  }
+  btnStudy.addEventListener('click', function(){ setMode('study'); });
+  btnQuiz.addEventListener('click', function(){ setMode('quiz'); });
+
+  function renderStudy(){
+    var cards = filteredCards();
+    if(cards.length === 0){
+      elMain.innerHTML = '<div class="empty">No cards in this category yet.</div>';
+      return;
+    }
+    if(state.index >= cards.length) state.index = 0;
+    var card = cards[state.index];
+    var isMastered = state.mastered.indexOf(card.id) !== -1;
+
+    var html = '';
+    html += '<div class="stage">';
+    html += '  <div class="cardzone"><div class="flip' + (state.flipped ? ' flipped' : '') + '" id="flipcard">';
+    html += '    <div class="face front">';
+    html += '      <span class="cat-tag">' + CATLABEL[card.cat] + '</span>';
+    html += '      <h2>' + card.q + '</h2>';
+    html += '      <div class="hint">Tap to reveal the answer</div>';
+    html += '    </div>';
+    html += '    <div class="face back">';
+    html += '      <div class="term">' + card.term + '</div>';
+    html += '      <p>' + card.a + '</p>';
+    html += '    </div>';
+    html += '  </div></div>';
+
+    html += '  <div class="controls">';
+    html += '    <button class="iconbtn" id="prevbtn" aria-label="Previous card">‹</button>';
+    html += '    <div class="judgebtns">';
+    html += '      <button class="again" id="againbtn">Still learning</button>';
+    html += '      <button class="got-it' + (isMastered ? ' pressed' : '') + '" id="gotitbtn">' + (isMastered ? 'Mastered ✓' : 'Got it') + '</button>';
+    html += '    </div>';
+    html += '    <button class="iconbtn" id="nextbtn" aria-label="Next card">›</button>';
+    html += '  </div>';
+    html += '  <div class="counter">Card ' + (state.index+1) + ' of ' + cards.length + '</div>';
+    html += '</div>';
+
+    elMain.innerHTML = html;
+
+    document.getElementById('flipcard').addEventListener('click', function(){
+      state.flipped = !state.flipped;
+      this.classList.toggle('flipped', state.flipped);
+    });
+    document.getElementById('prevbtn').addEventListener('click', function(){
+      state.index = (state.index - 1 + cards.length) % cards.length;
+      state.flipped = false;
+      renderStudy();
+    });
+    document.getElementById('nextbtn').addEventListener('click', function(){
+      state.index = (state.index + 1) % cards.length;
+      state.flipped = false;
+      renderStudy();
+    });
+    document.getElementById('gotitbtn').addEventListener('click', function(){
+      if(state.mastered.indexOf(card.id) === -1){
+        state.mastered.push(card.id);
+        saveMastered(state.mastered);
+        renderProgress();
+      }
+      state.index = (state.index + 1) % cards.length;
+      state.flipped = false;
+      renderStudy();
+    });
+    document.getElementById('againbtn').addEventListener('click', function(){
+      var pos = state.mastered.indexOf(card.id);
+      if(pos !== -1){
+        state.mastered.splice(pos,1);
+        saveMastered(state.mastered);
+        renderProgress();
+      }
+      state.index = (state.index + 1) % cards.length;
+      state.flipped = false;
+      renderStudy();
+    });
+  }
+
+  var quizState = { card:null, options:[], answered:false, correctCount:0, askedCount:0 };
+
+  function shuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1; i>0; i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = a[i]; a[i]=a[j]; a[j]=t;
+    }
+    return a;
+  }
+
+  function nextQuizQuestion(){
+    var pool = filteredCards();
+    if(pool.length < 2){
+      quizState.card = null;
+      return;
+    }
+    var card = pool[Math.floor(Math.random()*pool.length)];
+    var distractorPool = CARDS.filter(function(c){ return c.id !== card.id; });
+    var sameCat = distractorPool.filter(function(c){ return c.cat === card.cat; });
+    var others = distractorPool.filter(function(c){ return c.cat !== card.cat; });
+    var distractors = shuffle(sameCat).concat(shuffle(others)).slice(0,3);
+    var options = shuffle([card].concat(distractors));
+    quizState.card = card;
+    quizState.options = options;
+    quizState.answered = false;
+  }
+
+  function renderQuiz(){
+    var pool = filteredCards();
+    if(pool.length < 2){
+      elMain.innerHTML = '<div class="empty">Pick a category with at least 2 cards to quiz yourself.</div>';
+      return;
+    }
+    if(!quizState.card) nextQuizQuestion();
+    var card = quizState.card;
+
+    var html = '';
+    html += '<div class="quizcard">';
+    html += '  <span class="cat-tag">' + CATLABEL[card.cat] + '</span>';
+    html += '  <h2>' + card.q + '</h2>';
+    html += '  <div class="choices" id="choices">';
+    quizState.options.forEach(function(opt, i){
+      html += '<button class="choice" data-id="' + opt.id + '">' + opt.term + '</button>';
+    });
+    html += '  </div>';
+    html += '  <div class="quizfeedback" id="quizfeedback"></div>';
+    html += '  <button class="nextq" id="nextqbtn" hidden>Next question →</button>';
+    html += '</div>';
+    html += '<div class="score" id="quizscore">Score: ' + quizState.correctCount + ' / ' + quizState.askedCount + '</div>';
+
+    elMain.innerHTML = html;
+
+    var choiceBtns = elMain.querySelectorAll('.choice');
+    choiceBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        if(quizState.answered) return;
+        quizState.answered = true;
+        quizState.askedCount++;
+        var pickedId = parseInt(btn.getAttribute('data-id'),10);
+        var correct = pickedId === card.id;
+        if(correct) quizState.correctCount++;
+
+        choiceBtns.forEach(function(b){
+          var bid = parseInt(b.getAttribute('data-id'),10);
+          if(bid === card.id) b.classList.add('correct');
+          else if(bid === pickedId) b.classList.add('wrong');
+          b.disabled = true;
+        });
+
+        document.getElementById('quizfeedback').textContent = card.a;
+        document.getElementById('quizscore').textContent = 'Score: ' + quizState.correctCount + ' / ' + quizState.askedCount;
+        document.getElementById('nextqbtn').hidden = false;
+      });
+    });
+
+    document.getElementById('nextqbtn').addEventListener('click', function(){
+      nextQuizQuestion();
+      renderQuiz();
+    });
+  }
+
+  function render(){
+    if(state.mode === 'study') renderStudy();
+    else renderQuiz();
+  }
+
+  renderChips();
+  renderProgress();
+  render();
+})();
+</script>
